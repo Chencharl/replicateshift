@@ -39,4 +39,4 @@ See `CODE_REVIEW.md` for the structured review. The final results retained the n
 - Independent learner mastery, methodological novelty, and any new statistical theorem.
 - PyTorch, MPS/MLX, learned set encoders, higher-level random batches, informative repeat counts, and causal inference.
 
-Remote CI status is reported by GitHub Actions; this document's local execution record does not stand in for a remote CI result.
+The initial commit `927927930599b1c9d2d5795bd132fbdd8e66bc88` also passed [GitHub Actions run 39798214597](https://github.com/Chencharl/replicateshift/actions/runs/39798214597): package installation, the 28-test suite, and a 120-specimen CLI smoke run succeeded on Python 3.10 and 3.12. This verifies those workflows on the hosted Linux environment; it does not establish bitwise numerical identity with the macOS results.

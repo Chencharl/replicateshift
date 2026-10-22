@@ -77,7 +77,7 @@ See [methods](docs/METHODS.md), [research plan](docs/RESEARCH_PLAN.md), [code re
 
 ## Build understanding alongside the code
 
-The [learning plan](docs/LEARNING_PLAN.md) starts with a 45–60 minute split-leakage exercise and develops through three weekly contracts at 10–12 hours per week. Completion is evidenced by explanations, tests, and experiments—not the presence of AI-generated code.
+The [learning plan](docs/LEARNING_PLAN.md) builds on prior fine-tuning and statistical-modeling experience. It starts with a 45–60 minute model-selection/calibration design exercise and develops through three weekly contracts at 10–12 hours per week. Completion is evidenced by explanations, tests, and experiments—not the presence of AI-generated code.
 
 Project owner: **Chen Yang**. Initial implementation, documentation, and review were developed with AI assistance. Independent understanding and any future scientific claims must be demonstrated separately.
 
