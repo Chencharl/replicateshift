@@ -1,0 +1,4 @@
+# Preserve exact source/output bytes so manifest hashes survive Git checkout.
+* -text
+# Python's standard CSV dialect uses CRLF record endings.
+*.csv whitespace=cr-at-eol

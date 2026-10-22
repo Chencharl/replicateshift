@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "replicateshift"
+version = "0.1.0"
+description = "Deep learning, technical replicates, and auditable specimen-level predictive inference"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.26,<3"]
+license = "MIT"
+authors = [{name = "Chen Yang"}]
+
+[project.scripts]
+replicateshift = "replicateshift.benchmark:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

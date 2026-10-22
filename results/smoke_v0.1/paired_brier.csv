@@ -1,0 +1,13 @@
+seed,shift,baseline,difference,ci_low,ci_high,n_bootstrap,scope
+7,0.0,logistic,0.03157889699847785,-0.026199479374559766,0.0909364011434609,1000,paired test specimens; conditional on fixed fitted models
+7,0.0,interaction_logistic,0.06436570371912484,0.012729599112366628,0.11819998363772959,1000,paired test specimens; conditional on fixed fitted models
+7,1.5,logistic,0.05786694977408823,-0.014960720331938352,0.1303029939165208,1000,paired test specimens; conditional on fixed fitted models
+7,1.5,interaction_logistic,-0.015661947167195787,-0.08252609613124601,0.047757969469995304,1000,paired test specimens; conditional on fixed fitted models
+19,0.0,logistic,0.07279702181805403,0.004593284153190324,0.13521645264088156,1000,paired test specimens; conditional on fixed fitted models
+19,0.0,interaction_logistic,0.09351579562269029,0.018455280193700886,0.16465114589459948,1000,paired test specimens; conditional on fixed fitted models
+19,1.5,logistic,0.07079000067846763,0.016615269188045935,0.12728958090948123,1000,paired test specimens; conditional on fixed fitted models
+19,1.5,interaction_logistic,0.07530603544193686,0.011316848332672996,0.14712472534015944,1000,paired test specimens; conditional on fixed fitted models
+43,0.0,logistic,0.16640471197236567,0.08946468530139876,0.24291903552798558,1000,paired test specimens; conditional on fixed fitted models
+43,0.0,interaction_logistic,0.16326030527946156,0.07994894425022663,0.2497364179625692,1000,paired test specimens; conditional on fixed fitted models
+43,1.5,logistic,0.17815547133568022,0.10212367973762222,0.2562776393969925,1000,paired test specimens; conditional on fixed fitted models
+43,1.5,interaction_logistic,0.03657804660644262,-0.05388552999990431,0.12406904928114587,1000,paired test specimens; conditional on fixed fitted models

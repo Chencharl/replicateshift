@@ -1,0 +1,17 @@
+{
+  "specimens": 600,
+  "replicates": 3,
+  "seeds": [
+    7,
+    19,
+    43
+  ],
+  "shifts": [
+    0.0,
+    1.5
+  ],
+  "epochs": 180,
+  "alpha": 0.1,
+  "bootstrap": 1000,
+  "reproduction_command": "PYTHONPATH=src python -m replicateshift.benchmark --specimens 600 --replicates 3 --epochs 180 --alpha 0.1 --bootstrap 1000 --seeds 7 19 43 --shifts 0.0 1.5 --output results/local-reproduction"
+}

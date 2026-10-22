@@ -1,0 +1,7 @@
+seed,split,model,n_test_rows,accuracy_per_row,test_rows_with_specimen_seen_in_training,labels
+7,row_split,1_nearest_neighbor,360,0.9,0.825,permuted across specimens; shared within specimen
+7,specimen_split,1_nearest_neighbor,360,0.475,0.0,permuted across specimens; shared within specimen
+19,row_split,1_nearest_neighbor,360,0.9027777777777778,0.8277777777777777,permuted across specimens; shared within specimen
+19,specimen_split,1_nearest_neighbor,360,0.5083333333333333,0.0,permuted across specimens; shared within specimen
+43,row_split,1_nearest_neighbor,360,0.9111111111111111,0.8361111111111111,permuted across specimens; shared within specimen
+43,specimen_split,1_nearest_neighbor,360,0.5055555555555555,0.0,permuted across specimens; shared within specimen
