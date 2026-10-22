@@ -1,42 +1,43 @@
-# Validation record — 2026-10-22
+# Validation record — v0.2, 2026-10-22
 
-This record reports checks actually executed for the initial release. It is evidence of software behavior, not evidence that the learner independently wrote or understands every component.
+These checks were actually executed against the implemented toolkit and allocation study. They establish the reported software behavior and simulation results, not real-data validity or methodological novelty.
 
-## Environment
+## Environment and suite
 
-- Python 3.12.14; NumPy 2.3.5; existing macOS ARM64 runtime.
-- No local software was installed for this work.
-- Synthetic data only; no external research repository or laboratory dataset was used.
+Python 3.12.14, NumPy 2.3.5, macOS ARM64, using an existing runtime. No local software was installed. Public examples and experiments use synthetic data only.
 
-## Executed checks
+`PYTHONPATH=src python -m unittest discover -s tests -v`: **62 tests passed** in an independent review execution (approximately 0.40 seconds).
 
-`PYTHONPATH=src python -m unittest discover -s tests -v`: **28 tests passed**.
+The suite includes every-parameter finite-difference checks, repeat-order/padding invariance, equal-specimen scaling, deterministic training, minimum-validation-BCE checkpoint replay, conformal order statistics/ties/infinite thresholds, dataset/split integrity, fixed-budget allocation pairing, hand-computed paired MCSE, schema/persistence/ID guards, and tiny end-to-end artifact reconstructions. Tests mutate calibration/holdout labels and verify that fitted neural weights remain unchanged.
 
-The tests cover split disjointness and completeness, repeated-label integrity, deterministic generation, paired shift behavior, training-only scaling, analytic neural and logistic gradients against central finite differences, stable predictions, nonlinear held-out learning, conformal ranks/ties/small-calibration behavior, paired bootstrap identity, Wilson validation, separated random streams, all-pairs feature mapping, and CLI artifact reconstruction.
+## Executed allocation pilot
 
-The default smoke benchmark was executed with 600 specimens, three repeats, 180 epochs, three seeds, two shift scenarios, three models, and 1,000 paired bootstrap resamples. Each seed used 360 training, 120 calibration, and 120 test specimens. See `results/smoke_v0.1/protocol.json` for the executed settings.
+The frozen protocol produced 180 model-condition runs and 54,000 test predictions. The first complete run recorded **8.48 seconds** and **18.45 MiB peak traced allocations**. Runtime measures the simulation/fitting/prediction loop and excludes final report serialization. Tracemalloc is not total resident or device memory. This is a small workload measurement, not a hardware performance benchmark.
 
-The final run recorded approximately **0.43 seconds** and **29.83 MiB peak traced allocations** in that environment. This is a bounded smoke workload, not a hardware benchmark. Traced allocations are not total resident memory.
+An independent review verified:
 
-A separate execution into a fresh directory reproduced the following files byte-for-byte: predictions, leakage results, paired Brier comparisons, summary metrics, report, and protocol. All per-seed scientific metrics also matched exactly after excluding fit timing. Manifest timestamps and timing fields are expected to differ.
+- All nine source hashes and all seven output hashes in the manifest.
+- Reconstruction of prediction-set membership, Brier, accuracy, coverage, set size, and empty/singleton rates for every one of the 180 runs from compressed raw predictions.
+- All 18 scenario/model summaries and 12 paired Brier differences/MCSEs against independent formulas.
+- Regeneration of all 40 role pools from their saved seeds and agreement with pool hashes, ordered IDs, and raw test labels.
+- Exact development assay budgets, additional test costs, separate role IDs, prefix sampling, and finite-sample calibration ranks.
 
-SHA-256 readback checks verified every source and output hash recorded in the published manifest against the final local files. The package configuration parsed successfully. Local Markdown links were checked before publication.
+A second complete execution reproduced `protocol.json`, `summary.csv`, `paired_comparisons.csv`, `predictions.csv.gz`, `REPORT.md`, and `report.html` **byte-for-byte**. Every per-run scientific metric, source hash, and role-pool provenance record also matched exactly. Created-at timestamps and measured timing are expected to differ.
 
-## Review corrections
+The [manifest](../results/allocation_v0.2/manifest.json), [protocol](../results/allocation_v0.2/protocol.json), [report](../results/allocation_v0.2/REPORT.md), and [review](V0_2_REVIEW.md) retain the evidence. Published results were not selected to show a neural-model advantage, and no post-result hyperparameter retuning occurred.
 
-- Separated simulator and model-initialization streams using SeedSequence children; the initial shared-stream draft was excluded from release.
-- Made alpha and seed-count wording reflect CLI inputs.
-- Added all-pairwise-interaction logistic regression as a stronger simple nonlinear comparator before the reported study.
-- Validated Wilson interval counts and positive finite z values.
-- Recorded source hashes before fitting and rejected a run if source files changed during execution.
+## Reusable example
 
-See `CODE_REVIEW.md` for the structured review. The final results retained the neural model's worse unshifted Brier score; parameters were not retuned after examining the test results.
+The two included CSVs regenerate byte-for-byte from their stated synthetic seeds. Saved-model predictions replay exactly for both internal holdout and fresh-specimen examples. The independent review reconstructed their metrics and confirmed numeric-only NPZ weights. Inspected public artifacts contain synthetic IDs and no private paths or credentials.
 
-## What remains unverified
+The main README, methods, example commands, console entry points, and CI steps were reviewed against the actual command-line parser. Fitting uses a positional input argument; prediction uses `--input`. Model parameters and fitted scaling arrays reside in NPZ; JSON stores configuration, histories, checksums, splits, and calibration metadata.
 
-- A powered, prespecified simulation study and broad seed stability.
-- Real-data utility, clinical applicability, RNA/LC-MS fidelity, or biological findings.
-- Independent learner mastery, methodological novelty, and any new statistical theorem.
-- PyTorch, MPS/MLX, learned set encoders, higher-level random batches, informative repeat counts, and causal inference.
+## Report presentation
 
-The initial commit `927927930599b1c9d2d5795bd132fbdd8e66bc88` also passed [GitHub Actions run 39798214597](https://github.com/Chencharl/replicateshift/actions/runs/39798214597): package installation, the 28-test suite, and a 120-specimen CLI smoke run succeeded on Python 3.10 and 3.12. This verifies those workflows on the hosted Linux environment; it does not establish bitwise numerical identity with the macOS results.
+The HTML report is generated from the same summary records as the Markdown report and CSV. It has no external scripts or services. A browser preview of the local HTML was blocked because the browser tool disallows `file:` URLs; rendered layout and interactive filtering were therefore not visually verified in this environment. The Markdown/CSV evidence is independently reconstructed as described above.
+
+## Historical evidence and limits
+
+The unchanged [v0.1 validation](VALIDATION_V0_1.md) records the earlier 28-test suite, three-seed shift/leakage smoke study, and successful hosted Python 3.10/3.12 CI. Its source hashes refer to that historical revision, not the current code. Current hosted CI status is visible in the [workflow](https://github.com/Chencharl/replicateshift/actions/workflows/tests.yml).
+
+This release does not establish real RNA/LC-MS utility, robustness under higher-level batch dependence, informative repeat counts, optimal allocation, publication-level Monte Carlo precision, PyTorch/MPS performance, or a new inferential theorem. Those limits do not alter the executed results.

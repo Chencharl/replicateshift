@@ -123,19 +123,31 @@ class _AdamBinaryClassifier:
     def _parameter_shapes(self, n_features: int) -> dict[str, tuple[int, ...]]:
         raise NotImplementedError
 
-    def fit(self, X: Array, y: Array) -> _AdamBinaryClassifier:
+    def fit(self, X: Array, y: Array, validation: tuple[Array, Array] | None = None) -> _AdamBinaryClassifier:
         """Optimize the mean binary cross-entropy plus 0.5*l2*sum(weights**2).
 
         Each call starts afresh from the same seed; intercepts are unpenalized.
-        Hyperparameters and epoch count must be selected without test labels.
+        Optional validation selects the minimum unpenalized validation-BCE
+        checkpoint after an update. Validation never contributes gradients.
+        Without validation, behavior matches the original fixed-epoch fit.
         """
         X = _features(X)
         y = _labels(y, len(X))
+        if validation is not None:
+            if not isinstance(validation, (tuple, list)) or len(validation) != 2:
+                raise ValueError("Validation must contain features and labels")
+            Xval = _features(validation[0])
+            yval = _labels(validation[1], len(Xval))
+            if Xval.shape[1] != X.shape[1]:
+                raise ValueError("Validation features must match training features")
         self.n_features_in_ = X.shape[1]
         self.parameters_ = self._initialize_parameters(self.n_features_in_)
         first = {name: np.zeros_like(value) for name, value in self.parameters_.items()}
         second = {name: np.zeros_like(value) for name, value in self.parameters_.items()}
         self.loss_history_: list[float] = []
+        self.validation_loss_history_: list[float] = []
+        self.best_epoch_ = self.epochs
+        best_validation, best_parameters = float("inf"), None
         beta1, beta2, epsilon = 0.9, 0.999, 1e-8
         for step in range(1, self.epochs + 1):
             loss, gradients = self.loss_and_gradients(X, y, self.parameters_)
@@ -150,6 +162,18 @@ class _AdamBinaryClassifier:
                 self.parameters_[name] -= (
                     self.learning_rate * corrected_first / (np.sqrt(corrected_second) + epsilon)
                 )
+            if validation is not None:
+                logits = self._logits(Xval, self.parameters_)
+                value = float(np.mean(np.logaddexp(0., logits) - yval * logits))
+                if not np.isfinite(value):
+                    raise FloatingPointError("Nonfinite validation loss")
+                self.validation_loss_history_.append(value)
+                if value < best_validation:
+                    best_validation = value
+                    self.best_epoch_ = step
+                    best_parameters = {name: value.copy() for name, value in self.parameters_.items()}
+        if best_parameters is not None:
+            self.parameters_ = best_parameters
         self.final_loss_, _ = self.loss_and_gradients(X, y, self.parameters_)
         if not np.isfinite(self.final_loss_):
             raise FloatingPointError("Nonfinite final training loss")

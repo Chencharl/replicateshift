@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "replicateshift"
-version = "0.1.0"
-description = "Deep learning, technical replicates, and auditable specimen-level predictive inference"
+version = "0.2.0"
+description = "Repeat-aware deep learning, conformal prediction, and measurement-allocation experiments"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.26,<3"]
@@ -13,7 +13,9 @@ license = "MIT"
 authors = [{name = "Chen Yang"}]
 
 [project.scripts]
-replicateshift = "replicateshift.benchmark:main"
+replicateshift = "replicateshift.toolkit:main"
+replicateshift-allocation = "replicateshift.allocation:main"
+replicateshift-benchmark = "replicateshift.benchmark:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

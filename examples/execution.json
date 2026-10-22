@@ -1,0 +1,36 @@
+{
+  "fit": {
+    "n_test_specimens": 24,
+    "accuracy": 0.875,
+    "brier": 0.10284245751944793,
+    "log_loss": 0.33824002350610743,
+    "ece_10_bins": 0.14981559404366773,
+    "coverage": 0.9583333333333334,
+    "coverage_wilson_low": 0.7975819352134406,
+    "coverage_wilson_high": 0.9926065438344942,
+    "mean_set_size": 1.4583333333333333,
+    "empty_set_rate": 0.0,
+    "singleton_rate": 0.5416666666666666,
+    "scope": "held-out independent specimens, conditional on fitted model and calibration",
+    "nominal_coverage": 0.9,
+    "best_epoch": 120
+  },
+  "predict": {
+    "n_specimens": 30,
+    "output": "examples/predictions.csv",
+    "prediction_source_sha256": "5c6f4caf8fa71090f0ccf74dace373f1188a9735504766585151ed9a5a3c1e2f",
+    "metrics": {
+      "n_test_specimens": 30,
+      "accuracy": 0.6333333333333333,
+      "brier": 0.2289326875150913,
+      "log_loss": 0.7268862942232418,
+      "ece_10_bins": 0.2639221572576678,
+      "coverage": 0.9333333333333333,
+      "coverage_wilson_low": 0.7867654163738308,
+      "coverage_wilson_high": 0.9815229762087295,
+      "mean_set_size": 1.7666666666666666,
+      "empty_set_rate": 0.0,
+      "singleton_rate": 0.23333333333333334
+    }
+  }
+}

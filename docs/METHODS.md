@@ -1,51 +1,67 @@
-# Methods and claim boundaries
+# ReplicateShift v0.2 methods
 
-## Estimand and independent unit
+The current implementation has two entry points: a CSV model toolkit and an executed measurement-allocation experiment. Both predict one binary label per new independent specimen. The [v0.1 methods](METHODS_V0_1.md) describe the separate, preserved smoke study.
 
-The prediction target is one binary label for a previously unseen specimen, given all its technical measurements. It is not a new assay row from a known specimen, an RNA identity, a biological effect, or a causal treatment contrast. The specimen is the highest independent sampling unit in v0.1. There are no shared random batch effects in the simulator.
+## Prediction target and independence
 
-## Generative model
+A specimen contributes a set of technical measurements, one label, one training-loss contribution, and one calibration score. Repeats are not additional independent specimens. The implementation assumes independence between specimens; it does not supply a patient/family/batch-level sampling scheme. Existing-ID rejection catches direct reuse, not renamed measurements or unrecorded dependencies.
 
-For specimen i, draw z_i ~ N(0,I_3). Draw its binary label from a Bernoulli distribution with log odds `2.5*z_i0*z_i1 + 1.2*z_i2`. Append nine independent nuisance features with SD 1.5. All measurements of that specimen share these latent features. Add independent N(0,0.35²) noise to every feature in every technical repeat. The standard configuration contains 600 specimens and three repeats each.
+## Synthetic observation model
 
-For a measurement shift of s, transform the first three latent observed features to `(z0+s, z1/(1+abs(s)), z2+0.5*s)` before adding the same paired technical noise. Labels and nuisance features stay fixed. This is a controlled assay perturbation; it need not preserve P(Y|X). The data are not a calibrated simulation of mass, retention time, RNA modifications, or an actual instrument.
+For independent specimen i, draw three latent signal variables z_i ~ N(0,I). Draw a binary label with log odds `2.5*z_i0*z_i1 + 1.2*z_i2`. Append nine independent nuisance features with SD 1.5. Repeat j observes the same latent vector plus independent Gaussian noise with SD σ. The allocation pilot evaluates σ = 0.35 and 1.0 with paired underlying normal draws. Labels are drawn once per specimen.
 
-## Splits, preprocessing, and models
+This is an omics-inspired repeated-measurement abstraction. It is not a physical or biological model of RNA sequencing, mass, retention time, modification state, or an actual instrument. There is no shared random batch effect. Under this additive Gaussian mechanism, the repeat mean contains the relevant latent-location information; within-specimen SD is largely ancillary. A neural advantage is not assumed.
 
-Randomly allocate complete specimens into 60% training, 20% calibration, and 20% testing without label stratification. Average the technical measurements within each specimen. Fit all preprocessing on training specimens only. Keep calibration labels exclusive to conformal scoring, and test labels exclusive to evaluation. No hyperparameter selection or early stopping uses either set.
+## Fixed-budget allocation pilot
 
-Three models use mean binary cross-entropy plus `0.5*0.001*sum(weights²)` with unpenalized intercepts. All run 180 full-batch Adam steps (`beta1=.9`, `beta2=.999`, `epsilon=1e-8`).
+The development budget is 600 equal-cost assay rows. The alternatives m = 1, 3, 6 fund respectively 600, 200, 100 independent development specimens. Of the assay budget, 60% funds fitting, 20% validation, and 20% calibration. Thus role counts are `360/m`, `120/m`, and `120/m`. Each policy is evaluated on 300 additional specimens with m measurements each, costing `300*m` extra assay rows. Procurement, preparation, failed measurements, and computation are excluded from the cost model.
 
-| Model | Features / layers | Learning rate |
-|---|---|---:|
-| Linear logistic | 12 specimen-mean features | .03 |
-| Interaction logistic | 12 main effects and 66 pairwise products | .03 |
-| MLP | 12 → 32 tanh → 16 tanh → 1 sigmoid | .01 |
+Repeat count changes both the development allocation and test-time measurement policy. This compares complete policies, not an isolated training intervention. Calibration sizes 120, 40, and 20 also change the resolution and variability of the conformal threshold.
 
-Feature augmentation precedes training-only mean/SD standardization for the interaction model. The interaction map uses every unordered feature pair, without selecting the true generating interaction. These fixed hyperparameters are transparent baselines, not a claim of optimal tuning. Future comparisons require an inner training validation split and a fresh final test design.
+For each root seed, independent SeedSequence children generate maximum-sized fitting, validation, calibration, and test pools, plus model initializations. Allocations use nested prefixes of the appropriate role pool and of its repeats. A specimen cannot switch roles across policies. Model/scenario comparisons within a root seed are paired; different root seeds generate independent complete experiments. Each model has its own initialization stream, so redundant SD features at m=1 need not yield identical finite-epoch predictions across baseline fits.
 
-SeedSequence-spawned streams separate the simulator, partition, each model's initialization, bootstrap, and negative control. Scenario shifts intentionally share the simulation stream to preserve paired latent test specimens. Root seeds are 7, 19, and 43; exact role seeds are saved in each manifest.
+The frozen [configuration](../configs/allocation_pilot.json) uses seeds 101, 211, 307, 401, 503, 601, 701, 809, 907, 1009. These are ten exploratory complete-run replicates, not biological replicates or a confirmatory sample size. No hyperparameters were retuned after viewing the pilot test results.
 
-## Split conformal sets
+## Preprocessing and model fitting
 
-For each calibration specimen, use nonconformity `s_i = 1 - p_hat(y_i | x_i)`. Let `k = ceil((n_cal+1)*(1-alpha))`. The threshold is the kth smallest calibration score; if k exceeds n_cal, use positive infinity. Include label y when `1-p_hat(y|x) <= threshold`. Interpolation is not used, and ties are included conservatively.
+All transformations fit training specimens only. The statistical baselines first form specimen means and all 66 unordered pairwise products, then standardize each resulting feature with training mean and population SD. The second baseline additionally includes the 12 within-specimen population SDs (ddof=0), defined as zero for singleton specimens. Constant training features use scale one.
 
-For exchangeable calibration and test specimens and an independently trained fixed scoring rule, the prediction set has marginal coverage at least `1-alpha`. This averages over the calibration and new-test sampling; it does not promise coverage for each fixed calibration realization, class, covariate stratum, specimen, or shifted population. The target here is a whole-specimen label; no claim is made to implement hierarchical conformal methods for a new observation within a new or partially observed cluster.
+Deep Sets standardizes raw repeat features using equal total weight per specimen: each repeat's weight within a specimen is 1/m_i, and each specimen receives weight 1/n. Its masked encoder is
 
-## Evaluation and uncertainty
+`p_i = sigmoid(W4 * tanh(W3 * mean_j(phi(x_ij)) + b3) + b4)`
 
-Evaluate each model on exactly the same test specimen identities and labels. Report accuracy, mean squared probability error (Brier), clipped log loss, and a descriptive ten-bin positive-class expected calibration error. Also report conformal coverage, mean set size, empty-set rate, and singleton rate. Avoid interpreting ECE as a formal inferential test.
+where phi has two tanh layers with widths 16 and 12, and the decoder hidden width is 12. Padding contributes neither to scaling nor pooling nor loss. Repeat permutation leaves the score unchanged. Mean pooling also makes duplicating an entire set invariant, so cardinality is not a separate feature. Ragged-input support should not be interpreted as a learned model of evidence quantity.
 
-Coverage Wilson intervals use the number of independent test specimens, conditional on the fitted model and realized calibration threshold. Paired bootstrap comparisons resample test specimens with replacement 1,000 times, taking the 2.5th and 97.5th percentiles of the MLP-minus-baseline Brier difference. These intervals do not incorporate model fitting, calibration-set variability, or multiplicity across comparisons. Repeated-run means and MCSE are recorded separately; three seeds are only a smoke check.
+All methods minimize specimen-mean binary cross-entropy plus `0.5*0.003*sum(weight²)`, excluding biases from the penalty. Full-batch Adam uses beta1=.9, beta2=.999, epsilon=1e-8. Logistic learning rate is .03; Deep Sets uses .003. Every model trains 120 epochs and restores the checkpoint with lowest unpenalized validation BCE after an update; ties retain the earliest checkpoint. Validation affects selection only. Calibration and test labels never alter fitted weights or preprocessing.
 
-The shifted and unshifted scenarios are paired sensitivity conditions. Their predictions must not be pooled as independent measurements. There is no shifted-data coverage theorem asserted here.
+The NumPy implementation is explicit so its gradients and state can be inspected and tested. It does not require PyTorch, a GPU, or downloaded weights. This release makes no large-data throughput claim.
 
-## Negative control
+## Split conformal prediction
 
-Permute labels across whole specimens, then assign that permuted label to every repeat within each specimen. Train one-nearest-neighbor on individual rows under either a random row split or a specimen-disjoint split. Report test-row accuracy and the fraction of test rows whose specimen appears in training. The row split often asks an easier, different question: another measurement of a specimen already observed. The negative control checks memorization through specimen fingerprints, not neural model performance or probability calibration.
+With a selected, fixed predictor, each calibration specimen has score `s_i = 1 - p_hat(y_i | X_i)`. Set `k = ceil((n_cal+1)*(1-alpha))`. The threshold q is the kth ordered score, or positive infinity if k > n_cal. Include candidate label y exactly when `1-p_hat(y | X) <= q`. No interpolation is used; ties are conservative. At alpha=.1, the pilot ranks are 109/120, 37/40, and 19/20.
 
-## Extension rules
+If calibration and future specimens are exchangeable as complete objects, and score fitting/selection is independent of them, marginal label coverage is at least 1-alpha. This averages over calibration and new-test sampling. It does not promise coverage for a particular fixed calibration set, every class or subgroup, or an arbitrary new measurement policy. Whole-specimen exchangeability can allow dependent repeats within a specimen, but the training/scoring implementation cannot repair dependencies between specimens. Calibration guarantees prediction-set coverage, not probability calibration or parameter/causal inference.
 
-If adding shared batches or donors above specimens, split and resample the highest independent units or adopt and validate a corresponding hierarchical inference method. If using variable repeat counts, explicitly define the prediction target and how repeat count relates to outcomes and uncertainty. Do not treat more assay rows as more biological samples. See the research plan for preregistered study axes and contribution gates.
+## Metrics and Monte Carlo uncertainty
 
-Sources: [Angelopoulos & Bates](https://arxiv.org/abs/2107.07511); [Dunn, Wasserman & Ramdas](https://arxiv.org/abs/1809.07441).
+Per-run outputs retain accuracy, Brier score, clipped log loss, descriptive ten-bin ECE, coverage, set size, and empty/singleton rates. Coverage Wilson intervals in per-run metrics are conditional on the fitted model and realized calibration threshold. They do not include fitting/calibration variability and are not the uncertainty summary for comparisons across complete runs.
+
+For each model/scenario, report the mean metric over ten complete runs and MCSE = sample SD / sqrt(10). This estimates simulation precision across freshly drawn development and test data. It is not a biological confidence interval. For each baseline, calculate Deep-Sets-minus-baseline Brier within each root seed, then report the mean difference and MCSE of those ten paired differences. Never treat 54,000 prediction rows as 54,000 independent model-development experiments. No p-values or multiplicity-adjusted superiority claims are made. Coverage below 0.90 in a small empirical run average alone does not refute the marginal theorem.
+
+## CSV toolkit and reusable model
+
+The CSV workflow randomly partitions complete input specimens into 50/15/15/20% fitting/validation/calibration/holdout roles without label stratification. It requires at least 60 specimens and a labeled binary input. This workflow differs from the controlled pilot's budget allocation and external test pool. The model/scaler architecture and optimization defaults match the pilot; the number of features follows the CSV schema.
+
+Required identifiers are `specimen_id` and `replicate_id`; at least one finite numeric `feature_*` column is required. Fitting also requires `label`, consistently 0 or 1 within each specimen. Repeat counts may vary. Prediction labels are optional. Feature order can change, but feature names must match the fitted schema exactly. There is no automatic missingness imputation, batch correction, or higher-level grouping.
+
+The fit output includes JSON metadata, NPZ weights loaded with `allow_pickle=False`, holdout predictions, and holdout metrics. Metadata records input SHA-256, feature schema, software versions, model configuration, training histories, separate role seeds/IDs, and the frozen conformal threshold. NPZ stores model parameters and fitted scaling arrays. The weights file has a checked SHA-256. Stored IDs are plaintext for overlap checking; this release's examples contain synthetic IDs only. New prediction IDs must not appear in any previous role. Existing output paths are refused.
+
+## Provenance and limitations
+
+The experiment writes its protocol before fitting, fingerprints the source before/after fitting, and saves raw compressed predictions. The manifest records source/output hashes, ordered role-pool IDs and hashes, role seeds, environment, runtime, and traced allocation peak. Per-run counts reconstruct the nested prefix splits. Runtime excludes final report serialization; tracemalloc is not total resident or device memory. The HTML report is a self-contained results table.
+
+Historical v0.1 manifests refer to historical source, not necessarily the current v0.2 working tree. Their output files remain unchanged. Reproduction uses the matching recorded revision and environment where exact floating-point identity is required.
+
+The current contribution is reusable research software and an explicit measurement-allocation benchmark. Real-data utility, robustness across other observation mechanisms, optimal allocation, new architecture, and new coverage theory remain unestablished.
+
+Sources: [Deep Sets](https://arxiv.org/abs/1703.06114); [Angelopoulos & Bates](https://arxiv.org/abs/2107.07511); [Dunn, Wasserman & Ramdas](https://arxiv.org/abs/1809.07441).

@@ -16,3 +16,5 @@ jobs:
       - run: python -m pip install -e .
       - run: python -m unittest discover -s tests -v
       - run: python -m replicateshift.benchmark --specimens 120 --seeds 7 --epochs 5 --output results/local-ci
+      - run: replicateshift fit examples/synthetic_assay.csv --output results/local-ci-model --epochs 5
+      - run: replicateshift predict --input examples/new_specimens.csv --model results/local-ci-model --output results/local-ci-predictions.csv

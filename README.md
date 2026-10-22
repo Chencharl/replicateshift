@@ -1,90 +1,117 @@
 # ReplicateShift
 
-**Deep learning can predict a specimen. Can we trust its uncertainty?**
+**More independent specimens, or more technical repeats?**
 
-ReplicateShift is a personal research-engineering project connecting deep learning, biostatistics, and reproducible omics research. It studies a practical distinction: repeated measurements of one specimen do not create additional independent specimens.
+[![Tests](https://github.com/Chencharl/replicateshift/actions/workflows/tests.yml/badge.svg)](https://github.com/Chencharl/replicateshift/actions/workflows/tests.yml)
 
-The first release is a working, synthetic benchmark. It compares a two-hidden-layer neural network with linear and interaction-based logistic regression, then constructs prediction sets for **new specimens**. A separate negative control reveals how technical-repeat leakage can make unrelated labels appear predictable.
+ReplicateShift is a research toolkit for learning from repeated assays and evaluating specimen-level predictive uncertainty. It combines a **Deep Sets neural network**, statistical baselines, and split conformal prediction to study how measurement allocation changes prediction quality under a fixed assay budget.
 
-**Current status:** v0.1 research prototype; 28 automated tests pass locally. Three simulation seeds have been executed. No laboratory or patient data are included. A new statistical method, real-world validation, and independent learner mastery are not claimed.
+**v0.2 is executable software with an executed experiment:** fit a model from a CSV, save it, predict label sets for new specimens, or reproduce the 180-run allocation pilot. The public data are entirely synthetic. The motivating setting is RNA/omics research with technical replicates; the simulator does not model RNA chemistry or instrument physics.
 
-## Why this project
+## The project in one view
 
-My research interests connect biostatistics with computational RNA analysis. This project explores the boundary between a model that predicts well and an inference procedure whose uncertainty is defensible. The practical questions are:
+```mermaid
+flowchart LR
+    A[Technical repeats per specimen] --> B[Shared neural encoder]
+    B --> C[Masked mean pooling]
+    C --> D[Specimen probability]
+    V[Separate validation specimens] --> E[Select checkpoint]
+    E --> D
+    D --> F[Calibrate label sets]
+    G[Separate calibration specimens] --> F
+    F --> H[Evaluate new specimens]
+```
 
-1. What changes when the independent unit is a specimen rather than an assay row?
-2. Can prediction sets retain useful coverage without routinely including both labels?
-3. How do measurement shifts change accuracy, probability quality, and coverage?
-4. When does a simple interaction model outperform a neural network?
+The research question is concrete: **under a budget of 600 development measurements, what changes when we measure 600 specimens once, 200 specimens three times, or 100 specimens six times?** Every policy gets its own training, validation, and calibration specimens. Its 300 external test specimens have the same repeat count as development; their additional measurement cost is reported separately.
 
-The distinctive direction is a **replicate-allocation benchmark**: at a fixed measurement budget, when should a study measure more specimens versus more repeats? The current release establishes the foundations; [the research plan](docs/RESEARCH_PLAN.md) specifies the experiments needed to make that contribution credible. These questions build on established conformal-inference literature rather than claiming the grouping principle is new.
+| Repeats per specimen | Training | Validation | Calibration | Development assays | Additional test assays |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 360 | 120 | 120 | 600 | 300 |
+| 3 | 120 | 40 | 40 | 600 | 900 |
+| 6 | 60 | 20 | 20 | 600 | 1,800 |
 
-## First executed result
+## Executed results
 
-600 synthetic specimens per seed, three technical repeats each, and three seeds. Training, calibration, and testing use disjoint specimens. These are descriptive smoke-study means, not evidence of general model superiority.
+Ten independent complete-run seeds × two noise levels × three allocations × three models = **180 model-condition runs and 54,000 test predictions**. The configuration was fixed before inspecting these results. Values below are mean Brier scores ± Monte Carlo SE across runs; lower is better.
 
-| Model | Unshifted accuracy | Unshifted Brier ↓ | Unshifted coverage | Shifted coverage |
-|---|---:|---:|---:|---:|
-| Linear logistic | 0.683 | 0.207 | 0.928 | 0.847 |
-| Interaction logistic | 0.750 | 0.190 | 0.908 | 0.833 |
-| Neural network | 0.653 | 0.297 | 0.900 | 0.847 |
+| Noise SD | Repeats | Mean + interactions | Mean + SD + interactions | Deep Sets |
+|---:|---:|---:|---:|---:|
+| 0.35 | 1 | 0.226 ± 0.008 | 0.226 ± 0.007 | 0.230 ± 0.005 |
+| 0.35 | 3 | 0.247 ± 0.002 | 0.246 ± 0.001 | 0.248 ± 0.005 |
+| 0.35 | 6 | 0.255 ± 0.008 | 0.252 ± 0.004 | 0.256 ± 0.006 |
+| 1.00 | 1 | 0.252 ± 0.003 | 0.252 ± 0.004 | 0.247 ± 0.002 |
+| 1.00 | 3 | 0.250 ± 0.002 | 0.248 ± 0.001 | 0.250 ± 0.005 |
+| 1.00 | 6 | 0.250 ± 0.003 | 0.252 ± 0.004 | 0.262 ± 0.008 |
 
-The neural network did **not** outperform the simpler nonlinear baseline in this initial run. Its near-target unshifted coverage did not imply good probability calibration or superior predictions. Under the specified assay shift, all three empirical coverage means fell below the nominal 90% target; the exchangeability-based guarantee does not apply to this shifted setting.
+In this pilot, spending the development budget on more specimens was associated with better neural-model Brier scores at both noise levels. Deep Sets had no consistent advantage over the statistical baselines. Its mean conformal coverage ranged from 0.883 to 0.909, with mean set sizes from 1.662 to 1.785 out of two possible labels. Coverage near 90% can coexist with weak label discrimination.
 
-In the separate nearest-neighbor negative control, labels were permuted across specimens. Row splitting still gave **90.0–91.1%** accuracy, while splitting by specimen gave **47.5–50.8%**. The former often predicts another repeat of a specimen already seen during training. This diagnostic demonstrates leakage in this simulator, not a universal effect size for neural networks.
+These are exploratory simulation findings. Ten runs do not establish a universal allocation rule or a precise coverage audit. Repeats change both training and test-time information, and the budget excludes specimen procurement, preparation, failed assays, and computing cost.
 
-Read the [complete executed report](results/smoke_v0.1/REPORT.md) for set sizes, per-seed results, conditional uncertainty intervals, and limitations. All predictions, split identifiers, configurations, and hashes are included.
+Read the [full results and paired comparisons](results/allocation_v0.2/REPORT.md), [raw metrics](results/allocation_v0.2/per_run_metrics.csv), and [provenance manifest](results/allocation_v0.2/manifest.json). Download or clone the repository and open [report.html](results/allocation_v0.2/report.html) for a self-contained filterable results table; GitHub displays its source.
 
-## Run it
+## Use the toolkit
 
-Python 3.10+ and NumPy are sufficient. No pretrained weights, external datasets, GPU, service, or account is required. Use an environment where package installation is permitted.
+Requires Python 3.10+ and NumPy. No downloaded model, GPU, external dataset, or running service is needed. In an environment where installation is permitted:
 
 ```sh
-python -m venv .venv
-source .venv/bin/activate
+git clone https://github.com/Chencharl/replicateshift.git
+cd replicateshift
 python -m pip install -e .
+
+# Fit, select a checkpoint, calibrate, and evaluate untouched holdout specimens.
+replicateshift fit examples/synthetic_assay.csv --output results/local-model
+
+# Reuse the frozen model and calibration on new specimen IDs.
+replicateshift predict --model results/local-model \
+  --input examples/new_specimens.csv --output results/local-predictions.csv
+
+# Reproduce the frozen allocation experiment.
+replicateshift-allocation --config configs/allocation_pilot.json \
+  --output results/local-allocation
+
 python -m unittest discover -s tests -v
-python -m replicateshift.benchmark --output results/local-demo
 ```
 
-If NumPy is already available, run without installing the package:
+With an existing NumPy environment, prefix commands with `PYTHONPATH=src` and use `python -m replicateshift.toolkit` or `python -m replicateshift.allocation`; installation is optional. All outputs require fresh paths.
 
-```sh
-PYTHONPATH=src python -m unittest discover -s tests -v
-PYTHONPATH=src python -m replicateshift.benchmark --output results/local-demo
+The [included example](examples/README.md) contains actual input CSVs, a fitted JSON/NPZ model bundle, holdout results, and predictions for 30 new synthetic specimens. You can run `predict` directly against `examples/fitted_model`.
+
+### CSV contract
+
+```csv
+specimen_id,replicate_id,label,feature_signal,feature_background
+sample_001,r1,0,1.2,0.4
+sample_001,r2,0,1.3,0.5
+sample_002,r1,1,2.1,0.3
 ```
 
-The default smoke study uses seeds `7 19 43`, 600 specimens, three repeats, 180 training epochs, assay shifts `0 1.5`, and miscoverage level `alpha=0.1`. Use a fresh output directory: existing results are never overwritten. The [manifest](results/smoke_v0.1/manifest.json) records the actually executed software versions and configuration; floating-point results may vary across platforms or NumPy versions.
+The snippet illustrates the schema; fitting requires at least 60 specimens. Each specimen has one binary label and one or more technical repeats. Labels must agree within specimens. Numeric `feature_*` columns must be finite and complete. Repeat counts may vary. Prediction accepts the same feature names in any order, with labels optional. Previously used specimen IDs are rejected, but new identifiers alone cannot establish independence.
+
+The CSV workflow allocates complete specimens to **50% fitting, 15% checkpoint selection, 15% calibration, and 20% holdout**. This differs deliberately from the allocation experiment's 60/20/20 development split plus external test pool. No patient, family, or shared random-batch hierarchy is supported. Use requires independent specimens and exchangeability of calibration and future whole-specimen objects, including their repeat-collection policy.
 
 ## What is implemented
 
-- **Synthetic repeated assays:** specimen-specific latent signals and nuisance fingerprints, independent technical noise, nonlinear binary labels, and a paired measurement-shift stress test.
-- **Deep learning:** a `12 → 32 → 16 → 1` tanh network, stable binary cross-entropy, explicit backpropagation, L2 regularization, and Adam in NumPy. Every parameter's analytic gradient is checked numerically on a small fixture.
-- **Baselines:** linear logistic regression and logistic regression with all 66 pairwise interactions; each has its own training-only standardizer.
-- **Predictive inference:** specimen-level split conformal sets with a finite-sample order statistic and conservative tie handling.
-- **Evaluation:** accuracy, Brier score, log loss, descriptive calibration error, coverage, set size, empty/singleton rates, and paired specimen-bootstrap Brier differences.
-- **Reproducibility:** separated random streams, explicit split manifests, source/data/output hashes, deterministic tests, and GitHub Actions.
+- **A learned repeat-set representation:** shared `d → 16 → 12` tanh encoder, masked mean pooling, and `12 → 12 → 1` tanh/sigmoid head. Explicit backpropagation, full-batch Adam, specimen-weighted loss, and training-only scaling run in NumPy.
+- **Strong simple comparators:** logistic regression on specimen means with every pairwise interaction, and the same feature map plus within-specimen SD. All models choose a validation-BCE checkpoint from 120 fixed epochs.
+- **Predictive inference:** one conformal score per independent specimen; exact finite-sample order statistic, conservative ties, and coverage reported alongside set size and empty/singleton rates.
+- **Reusable artifacts:** strict CSV ingestion, JSON metadata, non-pickle NPZ weights, input/weight checksums, recorded split IDs, and frozen calibration reused at prediction time.
+- **Auditable experiments:** separate role pools and random streams, paired policy comparisons, per-run results, Monte Carlo SE, compressed raw predictions, source/output hashes, and runtime scope.
+- **Verification:** numerical gradient checks, repeat-order/padding invariance, checkpoint replay, leakage guards, state roundtrip, end-to-end artifact reconstruction, and GitHub Actions. See the [validation record](docs/VALIDATION.md) and [independent implementation review](docs/V0_2_REVIEW.md).
 
-The network consumes specimen-mean features. A learned set encoder such as Deep Sets is a future extension, not part of v0.1. The project does not implement causal-effect estimation, sequence reconstruction, or a validated LC-MS observation model.
+Mean pooling ignores the total repeat count: duplicating an entire set leaves its score unchanged. Variable-count ingestion does not imply that the model learns uncertainty from cardinality. The Gaussian-noise simulator also makes SD largely ancillary; it is not designed to ensure a neural-model win.
 
-## Statistical contract
+## Statistical scope and contribution
 
-One specimen supplies one label and one calibration score. With a fixed predictor trained independently, exchangeable calibration and new test specimens support **marginal** prediction-set coverage. This is neither a guarantee for every specimen nor a confidence interval for a biological effect. Shared batch effects, adaptive test reuse, and distribution shift require additional assumptions or methods.
+The target is a **binary label for a new specimen**. Under exchangeable calibration and test specimens and an independently fitted score, split conformal prediction gives marginal coverage. It does not establish conditional coverage for every subgroup, calibrated class probabilities, a biological-effect confidence interval, or causal identification. Arbitrary distribution shift can break the guarantee.
 
-Coverage is reported with set size because returning both labels always covers the answer. Test-set Wilson and bootstrap intervals are conditional on the fitted models/calibration set; they do not include the entire model-development process. Three seeds are insufficient for a publication-level simulation study.
+The project's contribution is an inspectable toolkit and measurement-allocation experiment. Deep Sets and split conformal prediction are established methods; a new statistical theorem or real-data advantage is not claimed. The [v0.1 snapshot](results/smoke_v0.1/REPORT.md) additionally retains a measurement-shift stress test and permuted-label leakage control; its [historical methods](docs/METHODS_V0_1.md) are separate from the [current methods](docs/METHODS.md).
 
-See [methods](docs/METHODS.md), [research plan](docs/RESEARCH_PLAN.md), [code review](docs/CODE_REVIEW.md), and [validation record](docs/VALIDATION.md).
-
-## Build understanding alongside the code
-
-The [learning plan](docs/LEARNING_PLAN.md) builds on prior fine-tuning and statistical-modeling experience. It starts with a 45–60 minute model-selection/calibration design exercise and develops through three weekly contracts at 10–12 hours per week. Completion is evidenced by explanations, tests, and experiments—not the presence of AI-generated code.
-
-Project owner: **Chen Yang**. Initial implementation, documentation, and review were developed with AI assistance. Independent understanding and any future scientific claims must be demonstrated separately.
+Project owner: **Chen Yang**. Implementation and review developed with AI assistance. Source, tests, exact protocols, and negative results are public so the work can be inspected and extended.
 
 ## References
 
+- Zaheer et al. [Deep Sets](https://arxiv.org/abs/1703.06114).
 - Angelopoulos & Bates. [A Gentle Introduction to Conformal Prediction and Distribution-Free Uncertainty Quantification](https://arxiv.org/abs/2107.07511).
-- Dunn, Wasserman & Ramdas. [Distribution-Free Prediction Sets for Two-Layer Hierarchical Models](https://arxiv.org/abs/1809.07441).
-- Zaheer et al. [Deep Sets](https://papers.neurips.cc/paper_files/paper/2017/hash/f22e4747da1aa27e363d86d40ff442fe-Abstract.html), a future architecture reference.
+- Dunn, Wasserman & Ramdas. [Distribution-Free Prediction Sets for Two-Layer Hierarchical Models](https://arxiv.org/abs/1809.07441). Related hierarchical inference; this project calibrates whole-specimen labels and does not implement their hierarchical procedures.
 
-MIT license. Proposed methodological extensions and contributions are welcome; preserve the estimand, independent unit, negative controls, and reproducible evidence when changing the benchmark.
+MIT license. Cite the software using [CITATION.cff](CITATION.cff), and cite the underlying methods separately.
